@@ -62,7 +62,6 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("shutdown error: %v", err)
 	}
-	log.Println("👋 Bye")
 }
 
 func parseDuration(durationStr string) time.Duration {

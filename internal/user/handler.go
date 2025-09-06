@@ -1,8 +1,10 @@
 package user
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type Handler struct {
@@ -13,20 +15,72 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	h.service.Create(r.Context(), &User{
-		Nickname: r.FormValue("nickname"),
-	})
+type CreateUserRequestDTO struct {
+	Nickname string `json:"nickname"`
 }
 
-func (h *Handler) GetUserByID(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
-	if err != nil {
+	var dto CreateUserRequestDTO
+
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	h.service.GetByID(r.Context(), id)
+
+	err := h.service.Create(r.Context(), &User{
+		Nickname: dto.Nickname,
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "User created successfully"})
+}
+
+func (h *Handler) FindAllUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.service.FindAll(r.Context())
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(
+		map[string]interface{}{
+			"users":   users,
+			"message": "Users fetched successfully",
+		},
+	)
+}
+
+func (h *Handler) GetUserByID(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
+	idStr := strings.TrimPrefix(path, "/users/")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	u, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, "user not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(
+		map[string]interface{}{
+			"user":    u,
+			"message": "User fetched successfully",
+		},
+	)
 }
 
 func (h *Handler) GetUserByNickname(w http.ResponseWriter, r *http.Request) {

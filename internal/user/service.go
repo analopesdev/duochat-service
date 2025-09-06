@@ -14,6 +14,10 @@ func (s *Service) Create(ctx context.Context, u *User) error {
 	return s.repo.Create(ctx, u)
 }
 
+func (s *Service) FindAll(ctx context.Context) ([]*User, error) {
+	return s.repo.FindAll(ctx)
+}
+
 func (s *Service) GetByID(ctx context.Context, id int64) (*User, error) {
 	return s.repo.GetByID(ctx, id)
 }
