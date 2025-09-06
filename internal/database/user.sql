@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS users (
+  id         BIGSERIAL PRIMARY KEY,
+  nickname   VARCHAR(255) UNIQUE NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

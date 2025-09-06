@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os/signal"
@@ -10,7 +9,10 @@ import (
 	"time"
 
 	"github.com/analopesdev/duochat-service/internal/config"
-	"github.com/analopesdev/duochat-service/internal/db"
+	db "github.com/analopesdev/duochat-service/internal/database"
+	httpx "github.com/analopesdev/duochat-service/internal/http/router"
+
+	"github.com/analopesdev/duochat-service/internal/user"
 )
 
 func main() {
@@ -35,20 +37,15 @@ func main() {
 	if err := db.Ping(ctx, pool); err != nil {
 		log.Fatalf("Ping to database failed: %v", err)
 	}
-
 	log.Println("Database connected successfully")
 
-	mux := http.NewServeMux()
+	repo := user.NewRepository(pool) // repository concreto
+	svc := user.NewService(*repo)    // service
+	h := user.NewHandler(svc)        // handlers HTTP
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "duochat up")
+	srv := httpx.NewServer(":"+cfg.AppPort, httpx.RouterDeps{
+		UserHandlers: h,
 	})
-
-	srv := &http.Server{
-		Addr:              ":" + cfg.AppPort,
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
 
 	go func() {
 		log.Printf("🚀 Server running on port :%s", cfg.AppPort)
@@ -58,12 +55,19 @@ func main() {
 	}()
 
 	<-ctx.Done()
+	log.Println("⏳ Shutting down gracefully...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("shutdown error: %v", err)
+	}
+	log.Println("👋 Bye")
 }
 
 func parseDuration(durationStr string) time.Duration {
 	duration, err := time.ParseDuration(durationStr)
 	if err != nil {
-		log.Printf("Erro ao fazer parse da duração '%s', usando padrão de 1h: %v", durationStr, err)
 		return time.Hour
 	}
 	return duration
