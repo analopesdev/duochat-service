@@ -19,7 +19,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// Configurar o pool de conexões
 	poolConfig := db.PoolConfig{
 		MaxConnections:  cfg.MaxConnections,
 		MinConnections:  cfg.MinConnections,
@@ -27,24 +26,17 @@ func main() {
 		MaxConnIdleTime: parseDuration(cfg.MaxConnIdleTime),
 	}
 
-	// Criar o pool de conexões
 	pool, err := db.ConnectPool(ctx, cfg.DBURL, poolConfig)
 	if err != nil {
-		log.Fatalf("Erro ao conectar ao banco de dados: %v", err)
+		log.Fatalf("Error connecting to database: %v", err)
 	}
 	defer pool.Close()
-	log.Println("✅ Pool de conexões criado com sucesso")
 
-	// Testar a conectividade
 	if err := db.Ping(ctx, pool); err != nil {
-		log.Fatalf("Ping ao banco de dados falhou: %v", err)
+		log.Fatalf("Ping to database failed: %v", err)
 	}
-	log.Println("✅ Conexão com banco de dados verificada")
 
-	// Log das estatísticas do pool
-	stats := db.GetStats(pool)
-	log.Printf("📊 Pool Stats - Max: %d, Total: %d, Idle: %d, Acquired: %d",
-		stats.MaxConns(), stats.TotalConns(), stats.IdleConns(), stats.AcquiredConns())
+	log.Println("Database connected successfully")
 
 	mux := http.NewServeMux()
 
@@ -68,7 +60,6 @@ func main() {
 	<-ctx.Done()
 }
 
-// parseDuration converte uma string de duração para time.Duration
 func parseDuration(durationStr string) time.Duration {
 	duration, err := time.ParseDuration(durationStr)
 	if err != nil {
