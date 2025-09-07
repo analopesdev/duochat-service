@@ -36,8 +36,13 @@ var upgrader = websocket.Upgrader{
 type Client struct {
 	hub *Hub
 
-	// The websocket connection.
 	conn *websocket.Conn
+
+	ID int64
+
+	RoomID string
+
+	Nickname string
 
 	// Buffered channel of outbound messages.
 	send chan []byte
@@ -65,7 +70,15 @@ func (c *Client) readPump() {
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.hub.broadcast <- message
+
+		// Cria mensagem com informações da sala
+		wsMessage := &Message{
+			RoomID:  c.RoomID,
+			Content: message,
+			UserID:  c.ID,
+		}
+
+		c.hub.broadcast <- wsMessage
 	}
 }
 
