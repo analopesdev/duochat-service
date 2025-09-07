@@ -11,6 +11,7 @@ import (
 	"github.com/analopesdev/duochat-service/internal/config"
 	db "github.com/analopesdev/duochat-service/internal/database"
 	httpx "github.com/analopesdev/duochat-service/internal/http/router"
+	"github.com/analopesdev/duochat-service/internal/ws"
 
 	"github.com/analopesdev/duochat-service/internal/user"
 )
@@ -45,6 +46,7 @@ func main() {
 
 	srv := httpx.NewServer(":"+cfg.AppPort, httpx.RouterDeps{
 		UserHandlers: h,
+		WsHandler:    ws.NewHandler(),
 	})
 
 	go func() {
