@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/analopesdev/duochat-service/internal/auth"
 	"github.com/analopesdev/duochat-service/internal/config"
 	db "github.com/analopesdev/duochat-service/internal/database"
 	httpx "github.com/analopesdev/duochat-service/internal/http/router"
@@ -40,9 +41,11 @@ func main() {
 	}
 	log.Println("Database connected successfully")
 
-	repo := user.NewRepository(pool) // repository concreto
-	svc := user.NewService(*repo)    // service
-	h := user.NewHandler(svc)        // handlers HTTP
+	userRepo := user.NewRepository(pool)
+	authSvc := auth.NewService([]byte(cfg.AuthSecret))
+
+	svc := user.NewService(*userRepo, authSvc) // service
+	h := user.NewHandler(svc)                  // handlers HTTP
 
 	srv := httpx.NewServer(":"+cfg.AppPort, httpx.RouterDeps{
 		UserHandlers: h,

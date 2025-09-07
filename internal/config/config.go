@@ -15,6 +15,7 @@ type Config struct {
 	MinConnections  int
 	MaxConnLifetime string
 	MaxConnIdleTime string
+	AuthSecret      string
 }
 
 func Load() Config {
@@ -27,6 +28,7 @@ func Load() Config {
 		MinConnections:  getEnvAsInt("DB_MIN_CONNECTIONS", 5),
 		MaxConnLifetime: getEnv("DB_MAX_CONN_LIFETIME", "1h"),
 		MaxConnIdleTime: getEnv("DB_MAX_CONN_IDLE_TIME", "30m"),
+		AuthSecret:      getEnv("AUTH_SECRET", ""),
 	}
 	return c
 }

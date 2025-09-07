@@ -20,24 +20,24 @@ type CreateUserRequestDTO struct {
 }
 
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
-
-	var dto CreateUserRequestDTO
-
-	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	var body struct {
+		Nickname string `json:"nickname"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
 
-	err := h.service.Create(r.Context(), &User{
-		Nickname: dto.Nickname,
-	})
+	token, err := h.service.Create(r.Context(), &User{Nickname: body.Nickname})
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	http.SetCookie(w, &http.Cookie{Name: "uid", Value: token, HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "User created successfully"})
 }
 
