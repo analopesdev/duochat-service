@@ -25,11 +25,6 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			if err != nil {
-				json.NewEncoder(w).Encode(map[string]string{"message": "invalid token"})
-				return
-			}
-
 			ctx := context.WithValue(r.Context(), "user", claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
