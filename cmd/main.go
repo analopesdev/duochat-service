@@ -12,13 +12,15 @@ import (
 	"github.com/analopesdev/duochat-service/internal/config"
 	db "github.com/analopesdev/duochat-service/internal/database"
 	httpx "github.com/analopesdev/duochat-service/internal/http/router"
-	"github.com/analopesdev/duochat-service/internal/ws"
-
+	"github.com/analopesdev/duochat-service/internal/room"
 	"github.com/analopesdev/duochat-service/internal/user"
+	"github.com/analopesdev/duochat-service/internal/ws"
 )
 
 func main() {
-	cfg := config.Load()
+	config.Load()
+
+	cfg := config.Values
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -42,13 +44,18 @@ func main() {
 	log.Println("Database connected successfully")
 
 	userRepo := user.NewRepository(pool)
-	authSvc := auth.NewService([]byte(cfg.AuthSecret))
+	roomRepo := room.NewRepository(pool)
+	authSvc := auth.NewService()
 
-	svc := user.NewService(*userRepo, authSvc) // service
-	h := user.NewHandler(svc)                  // handlers HTTP
+	userSvc := user.NewService(*userRepo)            // user service
+	roomSvc := room.NewService(*roomRepo)            // room service
+	userHandler := user.NewHandler(userSvc, authSvc) // user handlers HTTP
+	roomHandler := room.NewHandler(roomSvc)          // room handlers HTTP
 
 	srv := httpx.NewServer(":"+cfg.AppPort, httpx.RouterDeps{
-		UserHandlers: h,
+		UserHandlers: userHandler,
+		RoomHandlers: roomHandler,
+		AuthHandler:  auth.NewHandler(authSvc),
 		WsHandler:    ws.NewHandler(),
 	})
 

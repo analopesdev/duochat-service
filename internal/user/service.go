@@ -3,47 +3,45 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/analopesdev/duochat-service/internal/auth"
+	"github.com/google/uuid"
 )
 
 type Service struct {
 	repo *Repository
-	auth *auth.Service
 }
 
-func NewService(repo Repository, auth *auth.Service) *Service {
-	return &Service{repo: &repo, auth: auth}
+func NewService(repo Repository) *Service {
+	return &Service{repo: &repo}
 }
 
-func (s *Service) Create(ctx context.Context, u *User) (string, error) {
-	user, err := s.repo.GetByNickname(ctx, u.Nickname)
+func (s *Service) Create(ctx context.Context, u *User) (*User, error) {
+	existing, err := s.repo.GetByNickname(ctx, u.Nickname)
 
-	if err != nil {
-		return "", err
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return nil, err
 	}
 
-	if user != nil {
-		return "", errors.New("user already exists")
+	if existing != nil {
+		fmt.Println("nickname already exists")
+		return nil, ErrConflict
 	}
 
 	newUser := NewUser(u.Nickname)
-	s.repo.Create(ctx, newUser)
 
-	token, err := s.auth.GenerateToken(newUser.ID.String(), newUser.Nickname)
-
-	if err != nil {
-		return "", err
+	if err := s.repo.Create(ctx, newUser); err != nil {
+		return nil, err
 	}
 
-	return token, nil
+	return newUser, nil
 }
 
 func (s *Service) FindAll(ctx context.Context) ([]*User, error) {
 	return s.repo.FindAll(ctx)
 }
 
-func (s *Service) GetByID(ctx context.Context, id int64) (*User, error) {
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	return s.repo.GetByID(ctx, id)
 }
 

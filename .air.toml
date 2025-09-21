@@ -1,0 +1,19 @@
+# .air.toml
+[build]
+  cmd = "go build -o tmp/main cmd/main.go"
+  bin = "tmp/main"                # Caminho do binário
+  full_bin = ""                   # (deixe vazio)
+  include_ext = ["go"]
+  exclude_dir = ["vendor", "tmp"]
+  exclude_file = []
+  follow_symlink = true
+  kill_delay = 1000
+
+[log]
+  time = true
+
+[color]
+  main = "yellow"
+  watcher = "cyan"
+  build = "green"
+  runner = "magenta"

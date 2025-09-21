@@ -3,6 +3,7 @@ package room
 import (
 	"time"
 
+	"github.com/analopesdev/duochat-service/internal/room_user"
 	"github.com/google/uuid"
 )
 
@@ -16,6 +17,8 @@ type Room struct {
 	CreatedBy   uuid.UUID `json:"created_by" db:"created_by"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+
+	Users []*room_user.RoomUser `json:"users" db:"users"`
 }
 
 func NewRoom(name string, description string, isPrivate bool, password *string, maxUsers int, createdBy uuid.UUID) *Room {

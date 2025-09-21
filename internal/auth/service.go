@@ -2,67 +2,57 @@ package auth
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
+	"github.com/analopesdev/duochat-service/internal/config"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 )
 
 type Service struct {
-	secretKey []byte
 }
 
-func NewService(secretKey []byte) *Service {
-	return &Service{secretKey: secretKey}
+func NewService() *Service {
+	return &Service{}
 }
 
-func (s *Service) GenerateToken(userID string, nickname string) (string, error) {
-	expiresAt := time.Now().Add(30 * 24 * time.Hour) // 30 dias
+func (s *Service) ValidateToken(tokenString string) bool {
+	token, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(config.Values.AuthSecret), nil
+	})
 
-	claims := jwt.RegisteredClaims{
-		Subject:   userID,
-		Audience:  jwt.ClaimStrings{nickname}, // opcional; poderia ser custom
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(expiresAt),
+	return token.Valid
+}
+
+func (s *Service) GenerateJWT(sub string, username string) (string, error) {
+	claims := jwt.MapClaims{
+		"sub":      sub,
+		"username": username,
+		"exp":      time.Now().Add(30 * 24 * time.Hour).Unix(), // 30 days
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(s.secretKey)
+
+	tokenString, err := token.SignedString([]byte(config.Values.AuthSecret))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
 }
 
-func (s *Service) ValidateToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(
-		tokenString,
-		&jwt.RegisteredClaims{},
-		func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("algoritmo inesperado: %v", token.Header["alg"])
-			}
-			return s.secretKey, nil
-		},
-	)
-	if err != nil {
-		return nil, err
+func ParseToken(tokenString string) (*jwt.MapClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(config.Values.AuthSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil, errors.New("invalid token")
 	}
 
-	rc, ok := token.Claims.(*jwt.RegisteredClaims)
-	if !ok || !token.Valid {
-		return nil, errors.New("token inválido")
-	}
-	if rc.ExpiresAt != nil && time.Now().After(rc.ExpiresAt.Time) {
-		return nil, errors.New("token expirado")
+	claims, ok := token.Claims.(*jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("failed to parse token claims")
 	}
 
-	nick := ""
-	if len(rc.Audience) > 0 {
-		nick = rc.Audience[0]
-	}
-
-	return &Claims{
-		UserID:   uuid.MustParse(rc.Subject),
-		Nickname: nick,
-		Exp:      rc.ExpiresAt.Time.Unix(),
-		Iat:      rc.IssuedAt.Time.Unix(),
-	}, nil
+	return claims, nil
 }

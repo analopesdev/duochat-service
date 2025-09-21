@@ -8,6 +8,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var Values *Config
+
 type Config struct {
 	AppPort         string
 	DBURL           string
@@ -18,10 +20,10 @@ type Config struct {
 	AuthSecret      string
 }
 
-func Load() Config {
+func Load() {
 	_ = godotenv.Load()
 
-	c := Config{
+	Values = &Config{
 		AppPort:         getEnv("APP_PORT", "8080"),
 		DBURL:           mustEnv("DB_URL"),
 		MaxConnections:  getEnvAsInt("DB_MAX_CONNECTIONS", 25),
@@ -30,7 +32,6 @@ func Load() Config {
 		MaxConnIdleTime: getEnv("DB_MAX_CONN_IDLE_TIME", "30m"),
 		AuthSecret:      getEnv("AUTH_SECRET", ""),
 	}
-	return c
 }
 
 func getEnv(key, fallback string) string {

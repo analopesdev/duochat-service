@@ -21,7 +21,8 @@ func (r *Repository) Create(ctx context.Context, room *Room) error {
 }
 
 func (r *Repository) FindAll(ctx context.Context) ([]*Room, error) {
-	rows, err := r.db.Query(ctx, "SELECT id, name, description, is_private, password, max_users, created_by, created_at, updated_at FROM rooms")
+	rows, err := r.db.Query(ctx,
+		"SELECT rooms.id, rooms.name, rooms.description, rooms.is_private, rooms.password, rooms.max_users, rooms.created_by, rooms.created_at, rooms.updated_at FROM rooms LEFT JOIN room_users ON rooms.id = room_users.room_id")
 	if err != nil {
 		return nil, err
 	}

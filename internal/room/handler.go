@@ -54,6 +54,9 @@ func (h *Handler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) FindAllRooms(w http.ResponseWriter, r *http.Request) {
 	rooms, err := h.service.FindAll(r.Context())
+
+	print("FindAllRooms ============================")
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

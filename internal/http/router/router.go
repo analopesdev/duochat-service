@@ -3,28 +3,45 @@ package httpx
 import (
 	"net/http"
 
+	"github.com/analopesdev/duochat-service/internal/auth"
+	"github.com/analopesdev/duochat-service/internal/http/middleware"
+	"github.com/analopesdev/duochat-service/internal/room"
 	"github.com/analopesdev/duochat-service/internal/user"
 	"github.com/analopesdev/duochat-service/internal/ws"
 )
 
 type RouterDeps struct {
 	UserHandlers *user.Handler
+	RoomHandlers *room.Handler
 	WsHandler    *ws.Handler
 	WsHub        *ws.Hub
+	AuthHandler  *auth.Handler
 }
 
 func NewServer(addr string, deps RouterDeps) *http.Server {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /users", deps.UserHandlers.CreateUser)
-	mux.HandleFunc("GET /users", deps.UserHandlers.FindAllUsers)
-	mux.HandleFunc("GET /users/{id}", deps.UserHandlers.GetUserByID)
-	mux.HandleFunc("GET /users/by-nickname/:nickname", deps.UserHandlers.GetUserByID)
+	middlewareAuth := middleware.AuthMiddleware()
 
-	mux.HandleFunc("GET /ws", deps.WsHandler.ServeWs)
+	middleware.HandleFunc(mux, "POST /auth", deps.AuthHandler.AuthUser)
+	middleware.HandleFunc(mux, "POST /users", deps.UserHandlers.CreateUser)
+
+	middleware.HandleFunc(mux, "GET /users", deps.UserHandlers.FindAllUsers, middlewareAuth)
+	middleware.HandleFunc(mux, "GET /users/{id}", deps.UserHandlers.GetUserByID, middlewareAuth)
+	middleware.HandleFunc(mux, "GET /users/by-nickname/{nickname}", deps.UserHandlers.GetUserByNickname, middlewareAuth)
+
+	middleware.HandleFunc(mux, "POST /rooms", deps.RoomHandlers.CreateRoom, middlewareAuth)
+	middleware.HandleFunc(mux, "GET /rooms", deps.RoomHandlers.FindAllRooms, middlewareAuth)
+	middleware.HandleFunc(mux, "GET /rooms/{id}", deps.RoomHandlers.GetRoomByID, middlewareAuth)
+	middleware.HandleFunc(mux, "DELETE /rooms/{id}", deps.RoomHandlers.DeleteRoom, middlewareAuth)
+
+	middleware.HandleFunc(mux, "GET /ws", deps.WsHandler.ServeWs)
+
+	corsOptions := middleware.DefaultCORSOptions()
+	handler := middleware.CORS(corsOptions)(mux)
 
 	return &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: handler,
 	}
 }

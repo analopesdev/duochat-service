@@ -5,14 +5,18 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/analopesdev/duochat-service/internal/auth"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
-	service *Service
+	service     *Service
+	authService *auth.Service
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, authService *auth.Service) *Handler {
+	return &Handler{service: service, authService: authService}
 }
 
 type CreateUserRequestDTO struct {
@@ -20,6 +24,7 @@ type CreateUserRequestDTO struct {
 }
 
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
+
 	var body struct {
 		Nickname string `json:"nickname"`
 	}
@@ -28,17 +33,36 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.service.Create(r.Context(), &User{Nickname: body.Nickname})
+	user, err := h.service.Create(r.Context(), &User{Nickname: body.Nickname})
 
-	if err != nil {
+	switch err {
+	case ErrConflict:
+		errorMsg, _ := json.Marshal(map[string]string{
+			"message": "nickname already exists",
+			"error":   err.Error(),
+		})
+
+		http.Error(w, string(errorMsg), http.StatusConflict)
+		return
+	case nil:
+
+		token, err := h.authService.GenerateJWT(user.ID.String(), user.Nickname)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		http.SetCookie(w, &http.Cookie{Name: "uid", Value: token, HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
+
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(map[string]string{"message": "User created successfully"})
+
+	default:
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	http.SetCookie(w, &http.Cookie{Name: "uid", Value: token, HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "User created successfully"})
 }
 
 func (h *Handler) FindAllUsers(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +92,7 @@ func (h *Handler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.service.GetByID(r.Context(), id)
+	u, err := h.service.GetByID(r.Context(), uuid.MustParse(idStr))
 	if err != nil {
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
